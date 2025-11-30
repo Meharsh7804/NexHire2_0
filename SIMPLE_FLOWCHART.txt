@@ -1,0 +1,212 @@
+================================================================================
+  AI MOCK INTERVIEW SYSTEM - SIMPLIFIED STEP-BY-STEP FLOW
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 1: INTERVIEW CREATION                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+STEP 1: USER INPUT
+  └─> User fills form with:
+      • Position (e.g., "Full Stack Developer")
+      • Description (job requirements)
+      • Experience (years)
+      • Tech Stack (e.g., "React, TypeScript")
+
+STEP 2: VALIDATION
+  └─> Zod schema validates all fields
+      └─> If invalid: Show errors, return to STEP 1
+      └─> If valid: Continue to STEP 3
+
+STEP 3: AI PROMPT CONSTRUCTION
+  └─> System builds prompt string:
+      "Generate 5 technical interview questions with answers based on:
+       Position: {position}
+       Description: {description}
+       Experience: {experience}
+       Tech Stack: {techStack}"
+
+STEP 4: SEND TO AI MODEL
+  └─> Model: Gemini 2.5 Flash
+  └─> Configuration:
+      • Temperature: 1
+      • Max Tokens: 8192
+      • Response Format: JSON array
+
+STEP 5: AI RESPONSE
+  └─> Model returns JSON array:
+      [
+        {question: "...", answer: "..."},
+        {question: "...", answer: "..."},
+        ... (5 total)
+      ]
+
+STEP 6: RESPONSE PROCESSING
+  └─> Remove markdown code blocks (```json, ```)
+  └─> Parse JSON array
+  └─> Validate structure
+
+STEP 7: SAVE TO DATABASE
+  └─> Firestore Collection: "interviews"
+  └─> Document contains:
+      • Form data (position, description, etc.)
+      • Generated questions array
+      • userId (from Clerk authentication)
+      • Timestamps
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 2: INTERVIEW EXECUTION                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+STEP 1: LOAD INTERVIEW
+  └─> Fetch interview document from Firestore by ID
+  └─> Display questions to user
+
+STEP 2: USER RECORDS ANSWER
+  └─> User clicks "Record Answer"
+  └─> Browser requests microphone permission
+  └─> Speech Recognition API starts
+  └─> User speaks answer
+  └─> Browser transcribes speech to text
+  └─> Transcript displayed to user
+
+STEP 3: ANSWER VALIDATION
+  └─> Check if answer length > 30 characters
+      └─> If too short: Show error, return to STEP 2
+      └─> If valid: Continue to STEP 4
+
+STEP 4: PREPARE COMPARISON DATA
+  └─> Extract three pieces of data:
+      • Question text (from interview.questions[].question)
+      • Correct answer (from interview.questions[].answer)
+      • User answer (from speech-to-text transcript)
+
+STEP 5: BUILD COMPARISON PROMPT
+  └─> Construct prompt:
+      "Question: '{question}'
+       User Answer: '{userAnswer}'
+       Correct Answer: '{correctAnswer}'
+       
+       Compare the user's answer to the correct answer, and provide:
+       - Rating from 1 to 10
+       - Feedback for improvement
+       
+       Return JSON: {ratings: number, feedback: string}"
+
+STEP 6: SEND TO AI MODEL
+  └─> Model: Gemini 2.5 Flash (same instance)
+  └─> Model performs:
+      • Semantic comparison
+      • Accuracy analysis
+      • Completeness check
+      • Technical depth evaluation
+
+STEP 7: AI EVALUATION RESPONSE
+  └─> Model returns JSON:
+      {
+        ratings: 7,
+        feedback: "Your answer covers the basics correctly. However, 
+                   you missed mentioning X. Consider explaining Y for 
+                   a more complete response."
+      }
+
+STEP 8: SAVE FEEDBACK
+  └─> Firestore Collection: "userAnswers"
+  └─> Document contains:
+      • question: string
+      • correct_ans: string (from interview)
+      • user_ans: string (transcribed)
+      • feedback: string (from AI)
+      • rating: number (from AI, 1-10)
+      • mockIdRef: string (links to interview)
+      • userId: string
+      • Timestamps
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 3: FEEDBACK DISPLAY                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+STEP 1: FETCH ALL ANSWERS
+  └─> Query Firestore "userAnswers" collection
+  └─> Filter by:
+      • userId (current user)
+      • mockIdRef (interview ID)
+
+STEP 2: CALCULATE AVERAGE
+  └─> Sum all ratings
+  └─> Divide by number of answers
+  └─> Display overall score (e.g., "7.5 / 10")
+
+STEP 3: DISPLAY FEEDBACK
+  └─> Show each question with:
+      • Original question
+      • Expected answer (correct_ans)
+      • User's answer (user_ans)
+      • AI-generated feedback
+      • Individual rating
+
+================================================================================
+  DATA FLOW SUMMARY
+================================================================================
+
+USER INPUT → VALIDATION → AI PROMPT → GEMINI AI → JSON RESPONSE → FIREBASE
+
+INTERVIEW CREATION:
+  Form Data → AI → Questions Array → Firestore
+
+INTERVIEW EXECUTION:
+  Speech → Text → AI Comparison → Rating + Feedback → Firestore
+
+FEEDBACK DISPLAY:
+  Firestore Query → Aggregate Ratings → Display Report
+
+================================================================================
+  KEY COMPONENTS USED
+================================================================================
+
+AI MODEL:
+  • Name: Google Gemini 2.5 Flash
+  • Used for: Question generation AND answer evaluation
+  • Configuration: Temperature=1, MaxTokens=8192
+
+SPEECH-TO-TEXT:
+  • Browser Speech Recognition API
+  • Transforms: Audio → Text
+  • Library: react-hook-speech-to-text
+
+DATABASE:
+  • Firebase Firestore (NoSQL)
+  • Collections: "interviews", "userAnswers"
+  • Real-time listeners for dashboard updates
+
+AUTHENTICATION:
+  • Clerk (handles user management)
+  • userId used for data scoping
+
+================================================================================
+  ANSWER COMPARISON DETAILS
+================================================================================
+
+WHAT IS COMPARED:
+  1. Question Text (the interview question)
+  2. Correct Answer (AI-generated ideal answer from interview creation)
+  3. User Answer (transcribed speech-to-text response)
+
+HOW COMPARISON WORKS:
+  The AI model receives all three pieces of information and:
+  • Analyzes semantic similarity
+  • Checks technical accuracy
+  • Evaluates completeness
+  • Assesses clarity and structure
+  • Generates numerical rating (1-10)
+  • Provides constructive feedback
+
+RATING CRITERIA (inferred):
+  • 9-10: Excellent - Comprehensive and accurate
+  • 7-8: Good - Covers most points, minor gaps
+  • 5-6: Average - Basic understanding, missing details
+  • 3-4: Below Average - Significant gaps
+  • 1-2: Poor - Major misunderstandings
+
+================================================================================
+
